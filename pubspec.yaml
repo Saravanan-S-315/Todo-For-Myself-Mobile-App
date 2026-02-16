@@ -1,20 +1,39 @@
-name: todo_for_myself_mobile_app
-description: Local-first task and daily-note persistence layer.
+name: mytodo
+description: MyTodo - a personal planner and journal app.
 publish_to: 'none'
-version: 0.1.0+1
+version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Local database
   hive: ^2.2.3
   hive_flutter: ^1.1.0
+
+  # Image picking
+  image_picker: ^1.1.2
+
+  # Audio recording & playback
+  record: ^5.1.2
+  just_audio: ^0.9.39
+
+  # Calendar UI
+  table_calendar: ^3.1.2
+
+  # Theme persistence
+  shared_preferences: ^2.3.2
   provider: ^6.1.2
-  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

@@ -1,91 +1,122 @@
 import 'package:flutter/foundation.dart';
-import 'package:todo_for_myself_mobile_app/features/tasks/domain/models/task.dart';
-import 'package:todo_for_myself_mobile_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:mytodo/features/tasks/domain/models/task.dart';
+import 'package:mytodo/features/tasks/domain/repositories/task_repository.dart';
 
 class TaskController extends ChangeNotifier {
-  TaskController(this._taskRepository);
+  TaskController(this._repository);
 
-  final TaskRepository _taskRepository;
+  final TaskRepository _repository;
 
-  List<Task> _tasks = <Task>[];
+  final List<Task> _tasks = [];
+
+  List<Task> get tasks => List.unmodifiable(_tasks);
+
   bool _isLoading = false;
-
-  List<Task> get tasks => List<Task>.unmodifiable(_tasks);
   bool get isLoading => _isLoading;
 
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
   Future<void> loadTasks() async {
-    _setLoading(true);
-    try {
-      _tasks = await _taskRepository.getAll();
-    } catch (error, stackTrace) {
-      debugPrint('TaskController.loadTasks error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    } finally {
-      _setLoading(false);
-    }
+    await _runGuarded(() async {
+      final loadedTasks = await _repository.getAll();
+      _tasks
+        ..clear()
+        ..addAll(loadedTasks);
+      _sortTasks();
+    });
   }
 
   Future<void> addTask(String title) async {
-    final String trimmedTitle = title.trim();
+    final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
+      _errorMessage = 'Task title cannot be empty.';
+      notifyListeners();
       return;
     }
 
-    try {
-      final Task created = await _taskRepository.create(title: trimmedTitle);
-      _tasks = <Task>[created, ..._tasks];
-      notifyListeners();
-    } catch (error, stackTrace) {
-      debugPrint('TaskController.addTask error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    await _runGuarded(() async {
+      final task = Task(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: trimmedTitle,
+        isCompleted: false,
+        createdAt: DateTime.now(),
+      );
+
+      // Data flow: UI -> controller -> repository -> Hive.
+      await _repository.create(task);
+      _tasks.insert(0, task);
+      _sortTasks();
+    });
   }
 
   Future<void> toggleTask(String id) async {
-    final int index = _tasks.indexWhere((Task item) => item.id == id);
+    final index = _tasks.indexWhere((task) => task.id == id);
     if (index == -1) {
       return;
     }
 
-    final Task task = _tasks[index];
-    final bool nextCompleted = !task.isCompleted;
-    final DateTime now = DateTime.now();
-
-    final Task updated = task.copyWith(
-      isCompleted: nextCompleted,
-      completedAt: nextCompleted ? now : null,
-      clearCompletedAt: !nextCompleted,
-      updatedAt: now,
-    );
-
-    try {
-      final Task saved = await _taskRepository.update(updated);
-      final List<Task> nextTasks = List<Task>.from(_tasks);
-      nextTasks[index] = saved;
-      _tasks = nextTasks;
-      notifyListeners();
-    } catch (error, stackTrace) {
-      debugPrint('TaskController.toggleTask error: $error');
-      debugPrintStack(stackTrace: stackTrace);
-    }
+    await _runGuarded(() async {
+      final existing = _tasks[index];
+      final updated = existing.copyWith(isCompleted: !existing.isCompleted);
+      await _repository.update(updated);
+      _tasks[index] = updated;
+      _sortTasks();
+    }, showLoader: false);
   }
 
   Future<void> deleteTask(String id) async {
+    final index = _tasks.indexWhere((task) => task.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    await _runGuarded(() async {
+      await _repository.delete(id);
+      _tasks.removeAt(index);
+    }, showLoader: false);
+  }
+
+  void clearError() {
+    if (_errorMessage == null) {
+      return;
+    }
+
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> _runGuarded(
+    Future<void> Function() operation, {
+    bool showLoader = true,
+  }) async {
     try {
-      await _taskRepository.delete(id);
-      _tasks = _tasks.where((Task item) => item.id != id).toList(growable: false);
+      if (showLoader) {
+        _isLoading = true;
+      }
+      _errorMessage = null;
       notifyListeners();
+
+      await operation();
     } catch (error, stackTrace) {
-      debugPrint('TaskController.deleteTask error: $error');
+      _errorMessage = 'Something went wrong. Please try again.';
+      debugPrint('Task operation failed: $error');
       debugPrintStack(stackTrace: stackTrace);
+    } finally {
+      if (showLoader) {
+        _isLoading = false;
+      }
+      notifyListeners();
     }
   }
 
-  void _setLoading(bool value) {
-    if (_isLoading == value) {
-      return;
-    }
-    _isLoading = value;
-    notifyListeners();
+  void _sortTasks() {
+    _tasks.sort((a, b) {
+      final createdCompare = b.createdAt.compareTo(a.createdAt);
+      if (createdCompare != 0) {
+        return createdCompare;
+      }
+      return a.id.compareTo(b.id);
+    });
   }
 }

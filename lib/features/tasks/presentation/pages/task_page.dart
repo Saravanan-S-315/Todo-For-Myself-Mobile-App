@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:todo_for_myself_mobile_app/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:mytodo/features/tasks/presentation/controllers/task_controller.dart';
 
 class TaskPage extends StatefulWidget {
   const TaskPage({super.key});
@@ -19,42 +19,62 @@ class _TaskPageState extends State<TaskPage> {
   }
 
   Future<void> _showAddTaskDialog() async {
-    final TextEditingController textController = TextEditingController();
+    final controller = TextEditingController();
 
     await showDialog<void>(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            final bool canSubmit = textController.text.trim().isNotEmpty;
+      builder: (dialogContext) {
+        var currentValue = '';
 
-            Future<void> submit() async {
-              if (!canSubmit) {
-                return;
-              }
-              await this.context.read<TaskController>().addTask(textController.text);
-              if (dialogContext.mounted) {
-                Navigator.of(dialogContext).pop();
-              }
-            }
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final canSubmit = currentValue.trim().isNotEmpty;
 
             return AlertDialog(
-              title: const Text('Add task'),
-              content: TextField(
-                controller: textController,
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(hintText: 'Task title'),
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => submit(),
+              title: const Text('Add Task'),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      currentValue = value;
+                    });
+                  },
+                  onSubmitted: (_) async {
+                    if (!canSubmit) {
+                      return;
+                    }
+                    await context.read<TaskController>().addTask(currentValue);
+                    if (dialogContext.mounted) {
+                      Navigator.of(dialogContext).pop();
+                    }
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'Enter task title',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
               ),
-              actions: <Widget>[
+              actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: canSubmit ? submit : null,
+                  onPressed: canSubmit
+                      ? () async {
+                          await context
+                              .read<TaskController>()
+                              .addTask(currentValue);
+                          if (dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        }
+                      : null,
                   child: const Text('Add'),
                 ),
               ],
@@ -64,7 +84,7 @@ class _TaskPageState extends State<TaskPage> {
       },
     );
 
-    textController.dispose();
+    controller.dispose();
   }
 
   @override
@@ -72,31 +92,62 @@ class _TaskPageState extends State<TaskPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('MyTodo')),
       body: Consumer<TaskController>(
-        builder: (BuildContext context, TaskController controller, Widget? child) {
-          if (controller.isLoading) {
+        builder: (context, taskController, _) {
+          if (taskController.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (controller.tasks.isEmpty) {
+          if (taskController.errorMessage != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      taskController.errorMessage!,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: taskController.loadTasks,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          if (taskController.tasks.isEmpty) {
             return const Center(child: Text('No tasks yet'));
           }
 
-          return ListView.builder(
-            itemCount: controller.tasks.length,
-            itemBuilder: (BuildContext context, int index) {
-              final task = controller.tasks[index];
-              return ListTile(
-                leading: Checkbox(
-                  value: task.isCompleted,
-                  onChanged: (_) => controller.toggleTask(task.id),
-                ),
-                title: Text(task.title),
-                subtitle: task.description == null || task.description!.isEmpty
-                    ? null
-                    : Text(task.description!),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => controller.deleteTask(task.id),
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: taskController.tasks.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 4),
+            itemBuilder: (context, index) {
+              final task = taskController.tasks[index];
+              return Card(
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: Checkbox(
+                    value: task.isCompleted,
+                    onChanged: (_) => taskController.toggleTask(task.id),
+                  ),
+                  title: Text(
+                    task.title,
+                    style: TextStyle(
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => taskController.deleteTask(task.id),
+                  ),
                 ),
               );
             },
