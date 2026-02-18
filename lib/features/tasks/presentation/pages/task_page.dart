@@ -90,7 +90,6 @@ class _TaskPageState extends State<TaskPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('MyTodo')),
       body: Consumer<TaskController>(
         builder: (context, taskController, _) {
           if (taskController.isLoading) {

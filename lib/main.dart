@@ -1,30 +1,44 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:mytodo/core/data/local/hive_database.dart';
+import 'package:mytodo/features/daily_notes/data/repositories/local_daily_note_repository.dart';
+import 'package:mytodo/features/daily_notes/presentation/controllers/daily_note_controller.dart';
+import 'package:mytodo/features/home/presentation/pages/home_page.dart';
+import 'package:mytodo/features/settings/data/repositories/local_settings_repository.dart';
+import 'package:mytodo/features/settings/presentation/controllers/settings_controller.dart';
 import 'package:mytodo/features/tasks/data/repositories/local_task_repository.dart';
-import 'package:mytodo/features/tasks/domain/models/task.dart';
-import 'package:mytodo/features/tasks/domain/repositories/task_repository.dart';
 import 'package:mytodo/features/tasks/presentation/controllers/task_controller.dart';
-import 'package:mytodo/features/tasks/presentation/pages/task_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await Hive.initFlutter();
+    await HiveDatabase.initialize();
 
-    if (!Hive.isAdapterRegistered(TaskAdapter().typeId)) {
-      Hive.registerAdapter(TaskAdapter());
-    }
-
-    const tasksBoxName = 'tasks_box';
-    final taskBox = Hive.isBoxOpen(tasksBoxName)
-        ? Hive.box<Task>(tasksBoxName)
-        : await Hive.openBox<Task>(tasksBoxName);
-
-    final taskRepository = LocalTaskRepository(taskBox);
-    runApp(MyTodoApp(taskRepository: taskRepository));
+    runApp(
+      MultiProvider(
+        providers: [
+          Provider(create: (_) => LocalTaskRepository(HiveDatabase.tasksBox())),
+          Provider(create: (_) => LocalDailyNoteRepository()),
+          Provider(create: (_) => LocalSettingsRepository()),
+          ChangeNotifierProvider(
+            create: (context) => TaskController(context.read<LocalTaskRepository>()),
+          ),
+          ChangeNotifierProvider(
+            create: (context) => DailyNoteController(
+              context.read<LocalDailyNoteRepository>(),
+            ),
+          ),
+          ChangeNotifierProvider(
+            create: (context) => SettingsController(
+              context.read<LocalSettingsRepository>(),
+            )..loadSettings(),
+          ),
+        ],
+        child: const MyTodoApp(),
+      ),
+    );
   } catch (error, stackTrace) {
     debugPrint('Failed to initialize app: $error');
     debugPrintStack(stackTrace: stackTrace);
@@ -55,27 +69,44 @@ class _StartupErrorApp extends StatelessWidget {
 }
 
 class MyTodoApp extends StatelessWidget {
-  const MyTodoApp({
-    super.key,
-    required this.taskRepository,
-  });
-
-  final TaskRepository taskRepository;
+  const MyTodoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      // Data flow: UI widgets call TaskController methods, the controller
-      // coordinates repository operations, and the repository reads/writes Hive.
-      create: (_) => TaskController(taskRepository),
-      child: MaterialApp(
-        title: 'MyTodo',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-          useMaterial3: true,
-        ),
-        home: const TaskPage(),
-      ),
+    return Consumer<SettingsController>(
+      builder: (context, settingsController, _) {
+        final brightness = settingsController.isDarkModeEnabled
+            ? Brightness.dark
+            : Brightness.light;
+
+        return MaterialApp(
+          title: 'MyTodo',
+          themeMode: settingsController.isDarkModeEnabled
+              ? ThemeMode.dark
+              : ThemeMode.light,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.blue,
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
+          ),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              platformBrightness: brightness,
+            ),
+            child: child ?? const SizedBox.shrink(),
+          ),
+          home: const HomePage(),
+        );
+      },
     );
   }
 }
