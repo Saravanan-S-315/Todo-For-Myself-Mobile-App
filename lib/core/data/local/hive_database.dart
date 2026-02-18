@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:todo_for_myself_mobile_app/features/daily_notes/domain/models/daily_note.dart';
-import 'package:todo_for_myself_mobile_app/features/tasks/domain/models/task.dart';
+import 'package:mytodo/features/daily_notes/domain/models/daily_note.dart';
+import 'package:mytodo/features/tasks/domain/models/task.dart';
 
 class HiveBoxes {
   static const String tasks = 'tasks';
@@ -32,9 +32,11 @@ class HiveMigrationManager {
       return;
     }
 
-    for (int nextVersion = currentVersion + 1;
-        nextVersion <= latestVersion;
-        nextVersion++) {
+    for (
+      int nextVersion = currentVersion + 1;
+      nextVersion <= latestVersion;
+      nextVersion++
+    ) {
       final MigrationStep? step = migrations[nextVersion];
       if (step != null) {
         await step();
@@ -59,9 +61,9 @@ class HiveDatabase {
     await Hive.initFlutter();
     _registerAdapters();
 
-    final Box<dynamic> metadataBox = await Hive.openBox<dynamic>(HiveBoxes.metadata);
+    final metadataBox = await Hive.openBox<dynamic>(HiveBoxes.metadata);
 
-    final HiveMigrationManager migrationManager = HiveMigrationManager(metadataBox);
+    final migrationManager = HiveMigrationManager(metadataBox);
     await migrationManager.migrateToLatest(
       latestVersion: AppSchema.currentVersion,
       migrations: <int, MigrationStep>{
@@ -99,7 +101,7 @@ class HiveDatabase {
   }
 
   static void _registerAdapters() {
-    if (!Hive.isAdapterRegistered(1)) {
+    if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(TaskAdapter());
     }
     if (!Hive.isAdapterRegistered(2)) {
