@@ -12,12 +12,17 @@ class SettingsController extends ChangeNotifier {
   bool _isDarkModeEnabled = false;
   bool get isDarkModeEnabled => _isDarkModeEnabled;
 
+  bool _isNotificationsEnabled = true;
+  bool get isNotificationsEnabled => _isNotificationsEnabled;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
   Future<void> loadSettings() async {
     await _runGuarded(() async {
       _isDarkModeEnabled = await _settingsRepository.loadDarkModeEnabled();
+      _isNotificationsEnabled =
+          await _settingsRepository.loadNotificationsEnabled();
     });
   }
 
@@ -25,6 +30,13 @@ class SettingsController extends ChangeNotifier {
     await _runGuarded(() async {
       await _settingsRepository.setDarkModeEnabled(enabled);
       _isDarkModeEnabled = enabled;
+    }, showLoader: false);
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    await _runGuarded(() async {
+      await _settingsRepository.setNotificationsEnabled(enabled);
+      _isNotificationsEnabled = enabled;
     }, showLoader: false);
   }
 

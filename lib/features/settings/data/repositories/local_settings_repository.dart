@@ -15,4 +15,18 @@ class LocalSettingsRepository implements SettingsRepository {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setBool(_darkModeKey, enabled);
   }
+
+  static const String _notificationsKey = 'settings_notifications_enabled';
+
+  @override
+  Future<bool> loadNotificationsEnabled() async {
+    final preferences = await SharedPreferences.getInstance();
+    return preferences.getBool(_notificationsKey) ?? true;
+  }
+
+  @override
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setBool(_notificationsKey, enabled);
+  }
 }

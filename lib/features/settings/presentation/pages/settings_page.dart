@@ -16,9 +16,18 @@ class SettingsPage extends StatelessWidget {
             children: [
               SwitchListTile.adaptive(
                 title: const Text('Dark mode'),
-                subtitle: const Text('Use a darker theme to reduce eye strain.'),
+                subtitle:
+                    const Text('Use a darker theme to reduce eye strain.'),
                 value: settingsController.isDarkModeEnabled,
                 onChanged: settingsController.setDarkModeEnabled,
+              ),
+              const Divider(),
+              SwitchListTile.adaptive(
+                title: const Text('Push Notifications'),
+                subtitle:
+                    const Text('Receive reminders for habits and due tasks.'),
+                value: settingsController.isNotificationsEnabled,
+                onChanged: settingsController.setNotificationsEnabled,
               ),
               if (settingsController.errorMessage != null) ...[
                 const SizedBox(height: 8),

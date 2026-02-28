@@ -54,7 +54,8 @@ class _DailyNotesPageState extends State<DailyNotesPage> {
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2100, 12, 31),
                 focusedDay: controller.selectedDate,
-                selectedDayPredicate: (day) => isSameDay(day, controller.selectedDate),
+                selectedDayPredicate: (day) =>
+                    isSameDay(day, controller.selectedDate),
                 onDaySelected: (selectedDay, _) {
                   controller.setSelectedDate(selectedDay);
                 },
@@ -68,29 +69,39 @@ class _DailyNotesPageState extends State<DailyNotesPage> {
               const SizedBox(height: 8),
               TextField(
                 controller: _textController,
-                maxLines: 8,
-                decoration: const InputDecoration(
+                maxLines: null,
+                minLines: 15,
+                onChanged: (text) {
+                  controller.saveNoteForSelectedDate(text);
+                },
+                decoration: InputDecoration(
                   hintText: 'Write your note for today...',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Theme.of(context)
+                      .colorScheme
+                      .surfaceContainerHighest
+                      .withValues(alpha: 0.5),
                 ),
               ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
+                alignment: WrapAlignment.end,
                 children: [
-                  FilledButton.icon(
-                    onPressed: () => controller.saveNoteForSelectedDate(_textController.text),
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('Save note'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: selectedNote == null
-                        ? null
-                        : controller.deleteNoteForSelectedDate,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Delete note'),
-                  ),
+                  if (selectedNote != null && selectedNote.content.isNotEmpty)
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        _textController.clear();
+                        controller.deleteNoteForSelectedDate();
+                      },
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Clear note'),
+                    ),
                 ],
               ),
               if (controller.errorMessage != null) ...[
